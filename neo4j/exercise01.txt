@@ -1,0 +1,65 @@
+1.创建数据库：
+    修改neo4j.conf配置文件：initial.dbms.default_database=exec01.db
+    重启neo4j：neo4j restart
+
+2.创建节点和关系：
+    张三和李四从2006年开始成为朋友；李四，住在天津，1970年出生
+    	merge (n:Person {name:'zhangsan'}) -[r:FRIENDSHIP {since:2006}]-> (m:Person {name:'lisi',birth:1970})
+        match (n:Person {name:'zhangsan'}), (m:Person {name:'lisi'}) merge (m)-[r:FRIENDSHIP {since:2006}]->(n)
+    	match (n:Person {name:'lisi'}) merge (n)-[r:LIVEIN]->(m:City {name:'tianjin'}) return r
+    王五，住在深圳，1960年出生；和赵六从2006年开始成为朋友
+	merge (n:Person {name:'wangwu',birth:1960}) -[r:LIVEIN]-> (m:City {name:'shenzhen'})
+	match (n:Person {name:'wangwu'}) merge (n)-[r:FRIENDSHIP {since:2006}]->(m:Person {name:'zhaoliu'})
+	match (n:Person {name:'wangwu'}), (m:Person {name:'zhaoliu'}) merge (m)-[r:FRIENDSHIP {since:2006}]->(n)
+    赵六，住在北京，1960年出生；和张三从2001年开始成为朋友；
+	match (n:Person {name:'zhaoliu'}) set n.birth=1960
+	match (n:Person {name:'zhaoliu'}) merge (n)-[r:LIVEIN]->(m:City {name:'beijing'})
+	match (n:Person {name:'zhaoliu'}), (m:Person {name:'zhangsan'}) merge (n)-[r:FRIENDSHIP {since:2001}]->(m)
+	match (n:Person {name:'zhaoliu'}), (m:Person {name:'zhangsan'}) merge (m)-[r:FRIENDSHIP {since:2001}]->(n)
+    和李雷从2012年开始成为朋友；李雷，住在上海，1978年出生
+	match (n:Person {name:'zhaoliu'}) merge (n)-[r:FRIENDSHIP]->(m:Person {name:'lilei',birth:1978})
+	match (n:Person {name:'zhaoliu'}) -[r:FRIENDSHIP]-> (m:Person {name:'lilei'}) set r.since=2012
+	match (n:Person {name:'zhaoliu'}), (m:Person {name:'lilei'}) merge (m)-[r:FRIENDSHIP {since:2012}]->(n)
+	match (n:Person {name:'lilei'}) merge (n)-[r:LIVEIN]->(m:City {name:'shanghai'})
+    韩梅梅，住在上海，1981年出生；和王五是朋友；和李雷在1998年结婚
+	match (n:City {name:'shanghai'}) merge (m:Person {name:'hanmeimei',birth:1981})-[r:LIVEIN]->(n)
+	match (n:Person {name:'hanmeimei'}), (m:Person {name:'wangwu'}) merge (n)-[r:FRIENDSHIP]->(m)
+	match (n:Person {name:'hanmeimei'}), (m:Person {name:'wangwu'}) merge (m)-[r:FRIENDSHIP]->(n)
+	match (n:Person {name:'hanmeimei'}), (m:Person {name:'lilei'}) merge (n)-[r:MARRIAGE {since:1998}]->(m)
+	match (n:Person {name:'hanmeimei'}), (m:Person {name:'lilei'}) merge (m)-[r:MARRIAGE {since:1998}]->(n)
+    5个城市：北京（北京）、上海（上海）、天津（天津）、广州（广东省）、深圳（广东省）
+	merge (n:City {name:'guangzhou', province:'guangdong'})
+	match (n:City {name:'shenzhen'}) set n.province='guangdong'
+
+3.如下查询语句：
+    查询所有在上海出生的人物：
+	match (n:Person)-[r:LIVEIN]->(m:City {name:'shanghai'}) return n
+    查询所有对外有关系的节点
+	match (n:Person|City) -[r]-(m) return n
+    查询所有有关系的节点
+	match (n)-[r]-(m) return n,m
+    查询所有对外有关系的节点，以及关系类型
+	match (n:Person|City) -[r]-(m) return n,type(r)
+    查询所有有结婚关系的节点
+	match (n)-[r:MARRIAGE]->(m) return n,m
+    创建节点（马七、王小八），并同时指定关系
+          马七
+            和王小八是朋友
+          王小八
+	merge (n:Person {name:'maqi'}) -[r:FRIENDSHIP]-> (m:Person {name:'wangxiaoba'})
+	match (n:Person {name:'maqi'}), (m:Person {name:'wangxiaoba'}) merge (m)-[r:FRIENDSHIP]->(n)
+    查找某人的朋友的朋友
+	match (n)-[r:FRIENDSHIP]->(m)-[rel:FRIENDSHIP]->(k) return k
+    增加/修改：
+        韩梅梅 的年龄 34
+        赵六 的年龄 32
+        李雷 的年龄 44
+        王五 的年龄 25
+	    match (a:Person {name:'hanmeimei'}), (b:Person {name:'zhaoliu'}), (c:Person {name:'lilei'}), (d:Person {name:'wangwu'}) set a.age=34, b.age=32, c.age=44, d.age=25
+        添加 王五的属性 test 值为 test， 并删除改属性
+	        match (n:Person {name:'wangwu'}) set n.test='test'
+	    match (n:Person {name:'wangwu'}) remove n.test
+        删除 广州 节点 
+	        match (n:City {name:'guangzhou'}) detach delete n
+        删除有关系的节点
+	    match (n)-[r]-(m) detach delete n,m
